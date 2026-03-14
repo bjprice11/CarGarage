@@ -132,6 +132,7 @@
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/backend.csproj.CoreCompileInputs.cache
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/backend.MvcApplicationPartsAssemblyInfo.cs
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/backend.MvcApplicationPartsAssemblyInfo.cache
+/Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/backend.sourcelink.json
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/rjimswa.dswa.cache.json
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/rjsmrazor.dswa.cache.json
 /Users/brandonprice/Documents/Personal/CarGarage/backend/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json

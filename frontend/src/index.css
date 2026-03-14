@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 15% 3%;
+    --foreground: 220 10% 90%;
+
+    --card: 220 15% 6%;
+    --card-foreground: 220 10% 90%;
+    --card-hover: 220 15% 8%;
+
+    --popover: 220 15% 6%;
+    --popover-foreground: 220 10% 90%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 10%;
+    --secondary-foreground: 220 10% 80%;
+
+    --muted: 220 10% 15%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 10 80% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 100% / 0.06;
+    --input: 220 15% 12%;
+    --ring: 210 100% 50%;
+
+    --radius: 0.75rem;
+
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --info: 210 100% 50%;
+
+    --sidebar-background: 220 15% 4%;
+    --sidebar-foreground: 220 10% 70%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 8%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 0 0% 100% / 0.06;
+    --sidebar-ring: 210 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01";
+  }
+
+  /* Tabular numbers for data */
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .glass-shadow {
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 8px 16px -4px rgba(0,0,0,0.4);
+  }
+  .glass-shadow-hover {
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 12px 24px -8px rgba(0,0,0,0.6);
+  }
+  .transition-expo {
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+}

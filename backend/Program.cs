@@ -45,6 +45,8 @@ app.UseAuthorization();
 
 app.MapIdentityApi<User>();
 app.MapVehicleEndpoints();
+app.MapMaintenanceEndpoints();
+app.MapExpenseEndpoints();
 
 app.MapGet("/api/health", () =>
 {

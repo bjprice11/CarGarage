@@ -7,7 +7,7 @@ public class Maintenance
 {
     public int Id { get; set; }
 
-    [Required] public int VechileId { get; set; }
+    [Required] public int VehicleId { get; set; }
     [Required] public string ServiceType { get; set; } = string.Empty;
     public int MilageAtService { get; set; }
     public DateTime Date { get; set; } = DateTime.UtcNow;

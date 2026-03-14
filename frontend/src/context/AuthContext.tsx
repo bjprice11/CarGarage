@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const login = async (email: string, password: string): Promise<boolean> => {
         try {
             // Replace YOUR_PORT with your actual ASP.NET port
-            const response = await fetch('https://localhost:5273/login', {
+            const response = await fetch('https://localhost:7017/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

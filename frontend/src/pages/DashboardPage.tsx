@@ -1,151 +1,207 @@
-import { motion } from "framer-motion";
-import { Car, Wrench, DollarSign, AlertTriangle, Clock } from "lucide-react";
-import StatCard from "@/components/StatCard";
-import StatusBadge from "@/components/StatusBadge";
-import { mockVehicles, mockMaintenance, mockExpenses } from "@/data/mockData";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Car, Wrench, DollarSign, AlertCircle, Loader2 } from "lucide-react";
+import StatCard from "../components/StatCard";
+import { useAuth } from "../context/AuthContext";
+
+interface Vehicle {
+  id: number;
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  displayName?: string;
+}
+
+interface Expense {
+  id: number;
+  amount: number;
+}
+
+interface Maintenance {
+  id: number;
+  milageAtService: number;
+  date: string;
+}
+
+interface VehicleStats extends Vehicle {
+  needsService: boolean;
+  lastServiceDate: string | null;
+}
 
 export default function DashboardPage() {
-  const totalVehicles = mockVehicles.length;
-  const needsAttention = mockVehicles.filter(v => v.status === "service-due" || v.status === "in-shop").length;
-  const totalExpenses = mockExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const upcomingMaintenance = mockMaintenance.filter(m => m.status === "scheduled" || m.status === "overdue");
-  const recentExpenses = mockExpenses.slice(0, 5);
+  const [vehicles, setVehicles] = useState<VehicleStats[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalMaintenanceLogs, setTotalMaintenanceLogs] = useState(0);
+  const [activeAlerts, setActiveAlerts] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const vRes = await fetch("https://localhost:7017/api/vehicles", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (!vRes.ok) throw new Error("Failed to fetch vehicles");
+        
+        const vData: Vehicle[] = await vRes.json();
+        
+        let totalExp = 0;
+        let totalLogs = 0;
+        let alertsCount = 0;
+        const processedVehicles: VehicleStats[] = [];
+
+        // Fetch expenses and maintenance for all vehicles simultaneously
+        const expensesPromises = vData.map(v => 
+          fetch(`https://localhost:7017/api/expenses/vehicle/${v.id}`, { headers: { "Authorization": `Bearer ${token}` } }).then(res => res.json())
+        );
+        const maintenancePromises = vData.map(v => 
+          fetch(`https://localhost:7017/api/maintenance/vehicle/${v.id}`, { headers: { "Authorization": `Bearer ${token}` } }).then(res => res.json())
+        );
+
+        const expensesResults: Expense[][] = await Promise.all(expensesPromises);
+        const maintenanceResults: Maintenance[][] = await Promise.all(maintenancePromises);
+
+        // Process financial totals
+        expensesResults.forEach(vehicleExpenses => {
+          totalExp += vehicleExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        });
+
+        // Process service alerts and log counts
+        vData.forEach((vehicle, index) => {
+          const vMaint = maintenanceResults[index];
+          let needsService = true;
+          let lastServiceDate = null;
+
+          // Add this vehicle's service records to the total count
+          totalLogs += vMaint.length;
+
+          if (vMaint.length > 0) {
+            // Sort by date to find the most recent service
+            vMaint.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            const lastDate = new Date(vMaint[0].date);
+            lastServiceDate = lastDate.toLocaleDateString();
+            
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+            if (lastDate >= sixMonthsAgo) {
+                needsService = false;
+            }
+          }
+
+          if (needsService) alertsCount++;
+
+          processedVehicles.push({
+            ...vehicle,
+            needsService,
+            lastServiceDate
+          });
+        });
+
+        setVehicles(processedVehicles);
+        setTotalExpenses(totalExp);
+        setTotalMaintenanceLogs(totalLogs);
+        setActiveAlerts(alertsCount);
+
+      } catch (error) {
+        console.error("Failed to load dashboard data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchDashboardData();
+    }
+  }, [token]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Calculating garage metrics...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="space-y-6 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Garage Overview</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {needsAttention > 0
-            ? `${needsAttention} vehicle${needsAttention > 1 ? "s" : ""} require attention`
-            : "All systems nominal"}
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Overview of your garage</p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Vehicles" value={String(totalVehicles)} icon={<Car className="w-4 h-4" />} index={0} />
-        <StatCard label="Needs Attention" value={String(needsAttention)} icon={<AlertTriangle className="w-4 h-4" />} index={1} />
-        <StatCard label="Total Expenses" value={`$${totalExpenses.toLocaleString()}`} icon={<DollarSign className="w-4 h-4" />} index={2} />
-        <StatCard label="Upcoming Services" value={String(upcomingMaintenance.length)} icon={<Wrench className="w-4 h-4" />} index={3} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Vehicles"
+          value={"Total Vehicles: " + vehicles.length.toString()}
+          icon={<Car className="w-4 h-4 text-primary" />}
+          description="Total cars currently saved in your garage"
+        />
+        <StatCard
+          title="Overall Expenses"
+          value={"Overall Expenses: " + `$${totalExpenses.toFixed(2)}`}
+          icon={<DollarSign className="w-4 h-4 text-primary" />}
+          description="Sum of all financial records across all vehicles"
+        />
+        <StatCard
+          title="Service Records"
+          value={"Service Records: " + totalMaintenanceLogs.toString()}
+          icon={<Wrench className="w-4 h-4 text-primary" />}
+          description="Total number of maintenance events logged"
+        />
+        <StatCard
+          title="Active Alerts"
+          value={"Active Alerts: " + activeAlerts.toString()}
+          icon={<AlertCircle className={`w-4 h-4 ${activeAlerts > 0 ? "text-destructive" : "text-primary"}`} />}
+          description="Vehicles with no service logged in the last 6 months"
+        />
       </div>
 
-      {/* Two columns */}
-      <div className="grid lg:grid-cols-5 gap-4">
-        {/* Upcoming Maintenance — 3/5 */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.35, ease: [0.2, 0, 0, 1] }}
-          className="lg:col-span-3 rounded-xl bg-card glass-shadow overflow-hidden"
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Upcoming Maintenance</h2>
-            <Link to="/maintenance" className="text-xs text-primary hover:underline">View all</Link>
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-4 text-foreground">Your GarageOverview</h2>
+        {vehicles.length === 0 ? (
+          <div className="p-8 text-center border-2 border-dashed rounded-xl border-muted bg-card">
+            <h3 className="text-lg font-medium text-foreground">Your garage is empty</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Navigate to the Vehicles tab to add your first car.
+            </p>
           </div>
-          <div className="divide-y divide-border">
-            {upcomingMaintenance.map((m) => (
-              <div key={m.id} className="flex items-center gap-4 px-5 py-3 hover:bg-card-hover transition-colors duration-150 ease-expo">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Wrench className="w-4 h-4 text-muted-foreground" />
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vehicles.map((v) => (
+              <div key={v.id} className="p-5 border rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                {v.needsService && (
+                  <div className="absolute top-0 right-0 w-2 h-full bg-destructive" />
+                )}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-foreground pr-4">
+                    {v.year} {v.make} {v.model}
+                  </h3>
+                  <Car className="w-5 h-5 text-muted-foreground/50 shrink-0" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{m.type}</p>
-                  <p className="text-xs text-muted-foreground truncate">{m.vehicleName}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <StatusBadge status={m.status} />
-                  <p className="text-xs text-muted-foreground mt-1 font-tabular">{m.date}</p>
+                {v.displayName && (
+                  <p className="text-sm text-muted-foreground mb-3">"{v.displayName}"</p>
+                )}
+                <div className="space-y-2 mt-4 pt-4 border-t">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Wrench className="w-3 h-3" /> Last Service
+                    </span>
+                    <span className={v.needsService ? "text-destructive font-medium" : "text-foreground font-medium"}>
+                      {v.lastServiceDate || "Never"}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
-            {upcomingMaintenance.length === 0 && (
-              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                No upcoming maintenance scheduled.
-              </div>
-            )}
           </div>
-        </motion.div>
-
-        {/* Recent Expenses — 2/5 */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4, ease: [0.2, 0, 0, 1] }}
-          className="lg:col-span-2 rounded-xl bg-card glass-shadow overflow-hidden"
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Recent Expenses</h2>
-            <Link to="/expenses" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="divide-y divide-border">
-            {recentExpenses.map((e) => (
-              <div key={e.id} className="flex items-center justify-between px-5 py-3 hover:bg-card-hover transition-colors duration-150 ease-expo">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{e.description}</p>
-                  <p className="text-xs text-muted-foreground truncate">{e.vehicleName}</p>
-                </div>
-                <span className="text-sm font-semibold font-tabular text-foreground shrink-0 ml-4">
-                  ${e.amount}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        )}
       </div>
-
-      {/* Vehicle Status */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.45, ease: [0.2, 0, 0, 1] }}
-        className="rounded-xl bg-card glass-shadow overflow-hidden"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Fleet Status</h2>
-          <Link to="/vehicles" className="text-xs text-primary hover:underline">View all</Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-                <th className="text-left px-5 py-3">Vehicle</th>
-                <th className="text-left px-5 py-3">VIN</th>
-                <th className="text-right px-5 py-3">Odometer</th>
-                <th className="text-left px-5 py-3">Status</th>
-                <th className="text-left px-5 py-3">Last Service</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {mockVehicles.map((v) => (
-                <tr key={v.id} className="hover:bg-card-hover transition-colors duration-150 ease-expo">
-                  <td className="px-5 py-3">
-                    <span className="text-sm font-medium text-foreground">
-                      {v.year} {v.make} {v.model}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="text-xs font-mono text-muted-foreground">{v.vin}</span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <span className="text-sm font-mono font-tabular text-foreground">
-                      {v.odometer.toLocaleString()} mi
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={v.status} />
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="text-xs text-muted-foreground">{v.lastService}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
     </div>
   );
 }
